@@ -1,0 +1,20 @@
+{
+  "name": "exquisite",
+  "version": "0.0.0",
+  "description": "SQS-powered offline tasks",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stamen/exquisite.git"
+  },
+  "author": "Seth Fitzsimmons <seth@mojodna.net>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/stamen/exquisite/issues"
+  },
+  "homepage": "https://github.com/stamen/exquisite",
+  "dependencies": {
+    "aws-sdk": "^2.0.8",
+    "highland": "^1.26.3"
+  }
+}
