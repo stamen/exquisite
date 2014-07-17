@@ -5,7 +5,7 @@
 ## Usage
 
 ```javascript
-var exquisite = require("exquite");
+var exquisite = require("exquisite");
 
 var worker = exquisite({
   name: "test" // queue name; if a queue does not exist with this name it will
