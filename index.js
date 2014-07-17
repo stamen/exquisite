@@ -235,12 +235,10 @@ module.exports = function(options, fn) {
   };
 
   if (fn) {
-    var worker = new Worker(fn);
-
-    source.pipe(worker);
+    source.pipe(new Worker(fn));
 
     retval.cancel = function() {
-      source.unpipe(worker);
+      source.destroy();
     };
   }
 
