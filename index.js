@@ -38,7 +38,7 @@ var Worker = function(fn) {
       }
     };
 
-    return fn.bind(ctx)(payload, function(err) {
+    return fn.call(ctx, payload, function(err) {
       if (err) {
         console.warn(err.stack);
 
