@@ -8,8 +8,9 @@
 var exquisite = require("exquisite");
 
 var worker = exquisite({
-  name: "test" // queue name; if a queue does not exist with this name it will
-               // be created
+  name: "test",   // queue name; if a queue does not exist with this name it will
+                  // be created
+  maxAttempts: 10 // optional
 }, function(task, callback) {
   console.log("worker #1:", task);
 
@@ -50,6 +51,15 @@ worker.queue.queueTask({
 worker.queue.delete(function(err) {});
 ```
 
+When creating a queue, `maxAttempts` may be provided (if not, it defaults to
+`10`) as an upper limit on the number of attempts an individual task may
+request. This is used internally to configure [dead letter
+queues](http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSDeadLetterQueue.html),
+which is where payloads from failed tasks are sent. The name of the dead letter
+queue will be `<name>_failed` and the AWS credentials provided must have
+sufficient permission to create said queue if it hasn't already been created
+with default settings.
+
 A worker has 30s by default to complete a task before it becomes available to
 another worker. If you know that it will take longer, use `this.extend()`
 within the worker function to extend your exclusivity on a task. Calling this
@@ -59,10 +69,12 @@ and is retried, its visibility timeout will be reset.  (This uses SQS's
 
 Tasks will be re-queued when the worker's callback is passed an `Error` (as the
 first argument) or when the visibility timeout expires. Tasks will be executed
-up to `maxAttempts` times (which defaults to `1`).  If your worker experiences
-a reproducible error when processing a task, your best option is to mark the
-task as complete and log the error elsewhere rather than continuing to let it
-fail.
+up to `maxAttempts` times (which defaults to `1`; attempts are determined
+according to SQS's `ApproximateReceiveCount` attribute, which will be
+incremented when viewing queue contents in the AWS console).  If your worker
+experiences a reproducible error when processing a task, your best option is to
+mark the task as complete and log the error elsewhere rather than continuing to
+let it fail.
 
 To manage a queue:
 
