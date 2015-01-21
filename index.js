@@ -1,6 +1,7 @@
 "use strict";
 
 var assert = require("assert"),
+    EventEmitter = require("events").EventEmitter,
     stream = require("stream"),
     util = require("util");
 
@@ -83,7 +84,8 @@ module.exports = function(options, fn) {
   options.delay = options.delay || 0;
   options.visibilityTimeout = options.visibilityTimeout || 30;
 
-  var queueUrl;
+  var worker = new EventEmitter(),
+      queueUrl;
 
   sqs.createQueue({
     QueueName: options.name,
@@ -229,21 +231,19 @@ module.exports = function(options, fn) {
     });
   };
 
-  var retval = {
-    queue: {
-      delete: deleteQueue,
-      getLength: getLength,
-      queueTask: queueTask
-    }
+  worker.queue = {
+    delete: deleteQueue,
+    getLength: getLength,
+    queueTask: queueTask
   };
 
   if (fn) {
     source.pipe(new Worker(fn));
 
-    retval.cancel = function() {
+    worker.cancel = function() {
       source.destroy();
     };
   }
 
-  return retval;
+  return worker;
 };
