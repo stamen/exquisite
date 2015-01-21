@@ -76,31 +76,69 @@ util.inherits(Worker, stream.Writable);
  * Available options:
  * * name - Queue name (required)
  * * delay - Delay (in seconds) before queueing tasks. Defaults to 0.
+ * * maxAttempts - Number of attempts to make before marking a task as failed.
  * * visibilityTimeout - Max expected task time. Defaults to 30.
  */
 module.exports = function(options, fn) {
   assert.ok(options.name, "options.name is required");
 
   options.delay = options.delay || 0;
+  options.maxAttempts = options.maxAttempts || 10;
   options.visibilityTimeout = options.visibilityTimeout || 30;
 
   var worker = new EventEmitter(),
       queueUrl;
 
-  sqs.createQueue({
-    QueueName: options.name,
-    Attributes: {
-      DelaySeconds: options.delay.toString(),
-      ReceiveMessageWaitTimeSeconds: "20",
-      VisibilityTimeout: options.visibilityTimeout.toString()
-    }
-  }, function(err, data) {
-    if (err) {
-      console.warn(err.stack);
-      return;
+  var createDeadLetterQueue = function(basename, callback) {
+    var queueName = basename + "_failed";
+
+    return sqs.createQueue({
+      QueueName: queueName
+    }, function(err, data) {
+      if (err) {
+        return callback(err);
+      }
+
+      return sqs.getQueueAttributes({
+        QueueUrl: data.QueueUrl,
+        AttributeNames: [
+          "QueueArn"
+        ]
+      }, function(err, data) {
+        if (err) {
+          err.QueueName = queueName;
+          return callback(err);
+        }
+
+        return callback(null, data.Attributes.QueueArn);
+      });
+    });
+  };
+
+  createDeadLetterQueue(options.name, function(err, deadletterArn) {
+    if (err && err.code !== "QueueAlreadyExists") {
+      return worker.emit("error", err);
     }
 
-    queueUrl = data.QueueUrl;
+    return sqs.createQueue({
+      QueueName: options.name,
+      Attributes: {
+        DelaySeconds: options.delay.toString(),
+        RedrivePolicy: JSON.stringify({
+          maxReceiveCount: options.maxAttempts.toString(),
+          deadLetterTargetArn: deadletterArn
+        }),
+        ReceiveMessageWaitTimeSeconds: "20",
+        VisibilityTimeout: options.visibilityTimeout.toString()
+      }
+    }, function(err, data) {
+      if (err) {
+        err.QueueName = options.name;
+        return worker.emit("error", err);
+      }
+
+      queueUrl = data.QueueUrl;
+    });
   });
 
   var getQueueUrl = function(callback) {
@@ -139,15 +177,8 @@ module.exports = function(options, fn) {
               }
 
               if (attempts > payload.maxAttempts) {
-                // fire and forget
-                sqs.deleteMessage({
-                  QueueUrl: queueUrl,
-                  ReceiptHandle: msg.ReceiptHandle
-                }, function(err) {
-                  if (err) {
-                    console.warn(err);
-                  }
-                });
+                // ignore it; it'll be directed to the dead letter queue
+                // eventually
 
                 return;
               }
