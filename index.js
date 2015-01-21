@@ -20,26 +20,36 @@ var Worker = function(fn) {
     highWaterMark: 1 // limit the number of buffered tasks
   });
 
-  this._write = function(task, _, callback) {
-    var payload = task.data;
+
+  this._write = function(task, encoding, callback) {
+    var payload = task.data,
+        extend = function(time) {
+          return sqs.changeMessageVisibility({
+            QueueUrl: task.queueUrl,
+            ReceiptHandle: task.receiptHandle,
+            VisibilityTimeout: time
+          }, function(err) {
+            if (err) {
+              console.warn(err.stack);
+            }
+          });
+        };
 
     // allow workers to mark a task as known to be in progress for an estimate
     // future duration
     var ctx = {
-      extend: function(time) {
-        sqs.changeMessageVisibility({
-          QueueUrl: task.queueUrl,
-          ReceiptHandle: task.receiptHandle,
-          VisibilityTimeout: time
-        }, function(err) {
-          if (err) {
-            console.warn(err.stack);
-          }
-        });
-      }
+      extend: util.deprecate(extend, "Worker.extend: This is now handled internally.")
     };
 
+    // extend the reservation on this task by 30s every 15s (so it expires
+    // 15s after the interval is cancelled unless it's otherwise been cleared
+    // for good reason)
+    var extension = setInterval(_.partial(extend, 30), 15e3);
+
     return fn.call(ctx, payload, function(err) {
+      // cancel the reservation extension
+      clearInterval(extension);
+
       if (err) {
         console.warn(err.stack);
 
