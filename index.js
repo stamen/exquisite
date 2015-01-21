@@ -162,6 +162,12 @@ module.exports = function(options, fn) {
 
   var source = _(function(push, next) {
     return getQueueUrl(function(err, queueUrl) {
+      if (err) {
+        push(err);
+        push(null, _.nil);
+        return;
+      }
+
       return sqs.receiveMessage({
         QueueUrl: queueUrl,
         MaxNumberOfMessages: 1,
