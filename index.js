@@ -88,14 +88,12 @@ util.inherits(Worker, stream.Writable);
  * * name - Queue name (required)
  * * delay - Delay (in seconds) before queueing tasks. Defaults to 0.
  * * maxAttempts - Number of attempts to make before marking a task as failed.
- * * visibilityTimeout - Max expected task time. Defaults to 30.
  */
 module.exports = function(options, fn) {
   assert.ok(options.name, "options.name is required");
 
   options.delay = options.delay || 0;
   options.maxAttempts = options.maxAttempts || 10;
-  options.visibilityTimeout = options.visibilityTimeout || 30;
 
   var worker = new EventEmitter(),
       queueUrl;
@@ -139,8 +137,7 @@ module.exports = function(options, fn) {
           maxReceiveCount: options.maxAttempts.toString(),
           deadLetterTargetArn: deadletterArn
         }),
-        ReceiveMessageWaitTimeSeconds: "20",
-        VisibilityTimeout: options.visibilityTimeout.toString()
+        ReceiveMessageWaitTimeSeconds: "20"
       }
     }, function(err, data) {
       if (err) {
