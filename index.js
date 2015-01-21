@@ -206,8 +206,13 @@ module.exports = function(options, fn) {
     });
   });
 
-  var queueTask = function(data, options, callback) {
-    options = options || {};
+  var queueTask = function(data, queueOptions, callback) {
+    queueOptions = queueOptions || {};
+    queueOptions.maxAttempts = queueOptions.maxAttempts || 1;
+
+    assert.ok(queueOptions.maxAttempts <= options.maxAttempts,
+              "Max attempts for task must be less than queue max attempts (" + options.maxAttempts + ")");
+
     callback = callback || function(err) {
       if (err) {
         console.warn(err.stack);
@@ -215,7 +220,7 @@ module.exports = function(options, fn) {
     };
 
     var payload = {
-      maxAttempts: options.maxAttempts || 1,
+      maxAttempts: queueOptions.maxAttempts,
       data: data
     };
 
