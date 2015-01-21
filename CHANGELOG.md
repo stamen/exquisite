@@ -1,5 +1,9 @@
 # Changes
 
+## v1.1.2 - 1/21/15
+
+* Use custom agent to avoid conflicts with other users of `http(s).globalAgent`
+
 ## v1.1.1 - 1/20/15
 
 * Remove `visibilityTimeout` option for queues (obviated by task reservation
