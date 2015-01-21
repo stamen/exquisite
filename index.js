@@ -27,7 +27,6 @@ var Worker = function(fn) {
     highWaterMark: 1 // limit the number of buffered tasks
   });
 
-
   this._write = function(task, encoding, callback) {
     var payload = task.data,
         extend = function(time) {
