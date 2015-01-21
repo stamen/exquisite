@@ -80,14 +80,17 @@ util.inherits(Worker, stream.Writable);
 module.exports = function(options, fn) {
   assert.ok(options.name, "options.name is required");
 
+  options.delay = options.delay || 0;
+  options.visibilityTimeout = options.visibilityTimeout || 30;
+
   var queueUrl;
 
   sqs.createQueue({
     QueueName: options.name,
     Attributes: {
-      DelaySeconds: (options.delay || 0).toString(),
+      DelaySeconds: options.delay.toString(),
       ReceiveMessageWaitTimeSeconds: "20",
-      VisibilityTimeout: (options.visibilityTimeout || 30).toString()
+      VisibilityTimeout: options.visibilityTimeout.toString()
     }
   }, function(err, data) {
     if (err) {
