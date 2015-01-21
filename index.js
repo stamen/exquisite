@@ -168,7 +168,7 @@ module.exports = function(options, fn) {
         return;
       }
 
-      return sqs.receiveMessage({
+      var receive = sqs.receiveMessage({
         QueueUrl: queueUrl,
         MaxNumberOfMessages: 1,
         AttributeNames: ["ApproximateFirstReceiveTimestamp",
@@ -176,7 +176,10 @@ module.exports = function(options, fn) {
                          "SentTimestamp"]
       }, function(err, data) {
         if (err) {
-          console.warn(err.stack);
+          if (err.code !== "RequestAbortedError") {
+            console.warn(err.stack);
+          }
+
           return next();
         }
 
@@ -220,6 +223,17 @@ module.exports = function(options, fn) {
 
         return next();
       });
+
+      // cancel requests when the stream ends so we're not hanging onto any
+      // outstanding resources (sqs.receiveMessages waits 30s for messages by
+      // default)
+
+      var abort = receive.abort.bind(receive);
+
+      source.on("end", abort);
+
+      // clean up event listeners
+      receive.on("complete", _.partial(source.removeListener.bind(source), "end", abort));
     });
   });
 
