@@ -4,6 +4,7 @@
 
 * Remove `visibilityTimeout` option for queues (obviated by task reservation
   management)
+* Set `http(s).globalAgent.maxSockets` > potential concurrency (`Infinity`)
 
 ## v1.1.0 - 1/20/15
 

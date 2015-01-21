@@ -2,11 +2,18 @@
 
 var assert = require("assert"),
     EventEmitter = require("events").EventEmitter,
+    http = require("http"),
+    https = require("https"),
     stream = require("stream"),
     util = require("util");
 
 var _ = require("highland"),
     AWS = require("aws-sdk");
+
+// set these to at least the number of CPUs in order to effectively take
+// advantage of long polling in receiveMessage
+http.globalAgent.maxSockets = Infinity;
+https.globalAgent.maxSockets = Infinity;
 
 AWS.config.update({
   region: process.env.AWS_DEFAULT_REGION || "us-east-1"
