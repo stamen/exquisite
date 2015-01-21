@@ -51,7 +51,8 @@ var Worker = function(fn) {
       clearInterval(extension);
 
       if (err) {
-        console.warn(err.stack);
+        // TODO publish the error message somewhere
+        // console.warn(err.stack);
 
         // update visibility so it can be retried
         sqs.changeMessageVisibility({
