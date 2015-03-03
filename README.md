@@ -14,9 +14,6 @@ var worker = exquisite({
 }, function(task, callback) {
   console.log("worker #1:", task);
 
-  // extend the reservation on the current task by 30s
-  this.extend(30);
-
   return setTimeout(callback, 5000);
 });
 
