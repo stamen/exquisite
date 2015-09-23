@@ -94,69 +94,76 @@ util.inherits(Worker, stream.Writable);
 
 /**
  * Available options:
- * * name - Queue name (required)
+ * * url - URL of existing queue (required if name is not present)
+ * * name - Queue name (required if url is not present)
  * * delay - Delay (in seconds) before queueing tasks. Defaults to 0.
  * * maxAttempts - Number of attempts to make before marking a task as failed.
  */
 module.exports = function(options, fn) {
-  assert.ok(options.name, "options.name is required");
-
-  options.delay = options.delay || 0;
-  options.maxAttempts = options.maxAttempts || 10;
 
   var worker = new EventEmitter(),
       queueUrl;
 
-  var createDeadLetterQueue = function(basename, callback) {
-    var queueName = basename + "_failed";
+  if (options.url) {
+    queueUrl = options.url;
+  } else {
+    assert.ok(options.name, "options.name is required");
 
-    return sqs.createQueue({
-      QueueName: queueName
-    }, function(err, data) {
-      if (err) {
-        return callback(err);
-      }
+    options.delay = options.delay || 0;
+    options.maxAttempts = options.maxAttempts || 10;
 
-      return sqs.getQueueAttributes({
-        QueueUrl: data.QueueUrl,
-        AttributeNames: [
-          "QueueArn"
-        ]
+    var createDeadLetterQueue = function(basename, callback) {
+      var queueName = basename + "_failed";
+
+      return sqs.createQueue({
+        QueueName: queueName
       }, function(err, data) {
         if (err) {
-          err.QueueName = queueName;
           return callback(err);
         }
 
-        return callback(null, data.Attributes.QueueArn);
+        return sqs.getQueueAttributes({
+          QueueUrl: data.QueueUrl,
+          AttributeNames: [
+            "QueueArn"
+          ]
+        }, function(err, data) {
+          if (err) {
+            err.QueueName = queueName;
+            return callback(err);
+          }
+
+          return callback(null, data.Attributes.QueueArn);
+        });
       });
-    });
-  };
+    };
 
-  createDeadLetterQueue(options.name, function(err, deadletterArn) {
-    if (err && err.code !== "QueueAlreadyExists") {
-      return worker.emit("error", err);
-    }
-
-    return sqs.createQueue({
-      QueueName: options.name,
-      Attributes: {
-        DelaySeconds: options.delay.toString(),
-        RedrivePolicy: JSON.stringify({
-          maxReceiveCount: options.maxAttempts.toString(),
-          deadLetterTargetArn: deadletterArn
-        }),
-        ReceiveMessageWaitTimeSeconds: "20"
-      }
-    }, function(err, data) {
-      if (err) {
-        err.QueueName = options.name;
+    createDeadLetterQueue(options.name, function(err, deadletterArn) {
+      if (err && err.code !== "QueueAlreadyExists") {
         return worker.emit("error", err);
       }
 
-      queueUrl = data.QueueUrl;
+      return sqs.createQueue({
+        QueueName: options.name,
+        Attributes: {
+          DelaySeconds: options.delay.toString(),
+          RedrivePolicy: JSON.stringify({
+            maxReceiveCount: options.maxAttempts.toString(),
+            deadLetterTargetArn: deadletterArn
+          }),
+          ReceiveMessageWaitTimeSeconds: "20"
+        }
+      }, function(err, data) {
+        if (err) {
+          err.QueueName = options.name;
+          return worker.emit("error", err);
+        }
+
+        queueUrl = data.QueueUrl;
+        return queueUrl;
+      });
     });
-  });
+  }
 
   var getQueueUrl = function(callback) {
     if (queueUrl) {
@@ -202,20 +209,13 @@ module.exports = function(options, fn) {
                 return;
               }
 
-              if (attempts > payload.maxAttempts) {
-                // ignore it; it'll be directed to the dead letter queue
-                // eventually
-
-                return;
-              }
-
               return {
                 queueUrl: queueUrl,
                 messageId: msg.MessageId,
                 receiptHandle: msg.ReceiptHandle,
                 attributes: msg.Attributes,
                 attempts: attempts,
-                data: payload.data
+                data: payload
               };
             })
             .filter(function(task) {
@@ -243,22 +243,11 @@ module.exports = function(options, fn) {
     });
   });
 
-  var queueTask = function(data, queueOptions, callback) {
-    queueOptions = queueOptions || {};
-    queueOptions.maxAttempts = queueOptions.maxAttempts || 1;
-
-    assert.ok(queueOptions.maxAttempts <= options.maxAttempts,
-              "Max attempts for task must be less than queue max attempts (" + options.maxAttempts + ")");
-
+  var queueTask = function(payload, callback) {
     callback = callback || function(err) {
       if (err) {
         console.warn(err.stack);
       }
-    };
-
-    var payload = {
-      maxAttempts: queueOptions.maxAttempts,
-      data: data
     };
 
     return getQueueUrl(function(err, queueUrl) {
