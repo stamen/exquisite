@@ -1,5 +1,11 @@
 # Changes
 
+## v1.2.0 - 9/23/15
+
+* Allow pre-existing queue URL to be provided
+* Promotes `payload.data` to `payload` (variable `maxAttempts` tracking can be
+  implemented by clients) - SEMVER-MINOR
+
 ## v1.1.2 - 1/21/15
 
 * Use custom agent to avoid conflicts with other users of `http(s).globalAgent`
