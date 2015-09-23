@@ -209,13 +209,6 @@ module.exports = function(options, fn) {
                 return;
               }
 
-              if (attempts > payload.maxAttempts) {
-                // ignore it; it'll be directed to the dead letter queue
-                // eventually
-
-                return;
-              }
-
               return {
                 queueUrl: queueUrl,
                 messageId: msg.MessageId,
@@ -250,22 +243,11 @@ module.exports = function(options, fn) {
     });
   });
 
-  var queueTask = function(data, queueOptions, callback) {
-    queueOptions = queueOptions || {};
-    queueOptions.maxAttempts = queueOptions.maxAttempts || 1;
-
-    assert.ok(queueOptions.maxAttempts <= options.maxAttempts,
-              "Max attempts for task must be less than queue max attempts (" + options.maxAttempts + ")");
-
+  var queueTask = function(payload, callback) {
     callback = callback || function(err) {
       if (err) {
         console.warn(err.stack);
       }
-    };
-
-    var payload = {
-      maxAttempts: queueOptions.maxAttempts,
-      data: data
     };
 
     return getQueueUrl(function(err, queueUrl) {
